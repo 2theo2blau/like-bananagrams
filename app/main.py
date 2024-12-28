@@ -4,8 +4,8 @@ import math
 
 # Constants
 TILE_SIZE = 50
-GRID_WIDTH = 15
-GRID_HEIGHT = 15
+GRID_WIDTH = 16
+GRID_HEIGHT = 16
 SIDE_PANEL_WIDTH = 150
 BOTTOM_BAR_HEIGHT = TILE_SIZE * 2
 DUMP_AREA_HEIGHT = TILE_SIZE
@@ -240,7 +240,7 @@ class ResetButton:
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pygame.display.set_caption("Banangrams Game")
+    pygame.display.set_caption("Theo B's Banana Solitaire")
     clock = pygame.time.Clock()
     pool = TilePool()
     player_bar = PlayerBar(screen)
@@ -249,13 +249,14 @@ def main():
     reset_button = ResetButton(screen)
 
     # Initialize with 15 tiles
-    initial_tiles = [pool.draw_tile() for _ in range(15)]
+    initial_tiles = [pool.draw_tile() for _ in range(21)]
     player_bar.add_tiles(initial_tiles)
 
     dragged_tile = None
     dragging = False
     drag_offset_x = drag_offset_y = 0
     dragged_from_board = False
+    original_position = None  # To store original position if placement fails
 
     running = True
     while running:
@@ -279,37 +280,72 @@ def main():
                         letters = [tile.letter for tile in cleared_tiles if isinstance(tile, Tile)]
                         player_bar.add_tiles(letters)
                     elif y > GRID_HEIGHT * TILE_SIZE + DUMP_AREA_HEIGHT + BUTTON_HEIGHT:
+                        # Clicked within the player bar area
                         index, tile = player_bar.get_tile_at_position(x, y)
                         if tile:
                             dragged_tile = player_bar.remove_tile(index)
                             dragging = True
+                            dragged_from_board = False
                             drag_offset_x = x - tile.x
                             drag_offset_y = y - tile.y
                     else:
+                        # Clicked within the board area
                         col, row = x // TILE_SIZE, y // TILE_SIZE
                         if 0 <= col < GRID_WIDTH and 0 <= row < GRID_HEIGHT and board.grid[row][col]:
                             dragged_tile = board.remove_tile(row, col)
                             dragging = True
-                            drag_offset_x = x % TILE_SIZE
-                            drag_offset_y = y % TILE_SIZE
+                            dragged_from_board = True
+                            # Calculate offset within the tile
+                            drag_offset_x = x - (col * TILE_SIZE)
+                            drag_offset_y = y - (row * TILE_SIZE)
+                            original_position = (row, col)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if dragging:
                     x, y = event.pos
                     if dump_area.is_in_area((x, y)):  # Dump the tile
                         dumped_tiles = pool.dump_tiles(dragged_tile.letter)
                         player_bar.add_tiles(dumped_tiles)
-                    else:  # Place on the board or return to bar
+                        dragged_tile = None
+                        dragging = False
+                        dragged_from_board = False
+                        original_position = None
+                    else:
+                        # Attempt to place the tile on the board
                         col, row = x // TILE_SIZE, y // TILE_SIZE
+                        placed = False
                         if 0 <= col < GRID_WIDTH and 0 <= row < GRID_HEIGHT:
-                            board.place_tile(row, col, dragged_tile)
+                            placed = board.place_tile(row, col, dragged_tile)
+                            if placed:
+                                # Successfully placed on the board
+                                pass
+                            else:
+                                # Failed to place on the board (cell occupied)
+                                if dragged_from_board and original_position:
+                                    original_row, original_col = original_position
+                                    # Attempt to return to original position
+                                    placed_back = board.place_tile(original_row, original_col, dragged_tile)
+                                    if not placed_back:
+                                        # If returning to original position fails, add to player bar
+                                        player_bar.add_tiles([dragged_tile])
+                                else:
+                                    # Add back to player bar
+                                    player_bar.add_tiles([dragged_tile])
                         else:
+                            # Outside the board, add back to player bar
                             player_bar.add_tiles([dragged_tile])
-                    dragged_tile = None
-                    dragging = False
+                        # Reset dragging state
+                        dragged_tile = None
+                        dragging = False
+                        dragged_from_board = False
+                        original_position = None
 
         # Move tiles towards their target positions
         for tile in player_bar.tiles:
             tile.move_towards_target()
+        for row in range(GRID_HEIGHT):
+            for col in range(GRID_WIDTH):
+                if board.grid[row][col]:
+                    board.grid[row][col].move_towards_target()
 
         # Draw the dragged tile
         if dragging and dragged_tile:
@@ -322,6 +358,7 @@ def main():
         clock.tick(30)
 
     pygame.quit()
+
 
 if __name__ == "__main__":
     main()
