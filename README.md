@@ -1,5 +1,5 @@
 # Theo's Banana Solitaire
----
+
 This is a word game inspired by Bananagrams, designed with a single player in mind. 
 
 ## Rules
