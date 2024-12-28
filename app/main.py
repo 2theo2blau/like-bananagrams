@@ -240,7 +240,7 @@ class ResetButton:
 def main():
     pygame.init()
     screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    pygame.display.set_caption("Theo B's Banana Solitaire")
+    pygame.display.set_caption("Theo B's Banana Solitaire for the Chronically Alone")
     clock = pygame.time.Clock()
     pool = TilePool()
     player_bar = PlayerBar(screen)
